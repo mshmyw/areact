@@ -9,5 +9,18 @@
 # learn1 参考
 Vite 特性介绍：https://vitest.dev/guide/features.html
 Vitest debug 方法：https://vitest.dev/guide/debugging.html
-# jsx and 同步
+# jsx
 esbuild 的 JSX 特性支持：https://esbuild.github.io/content-types/#jsx
+## 同步渲染
+基于栈的递归
+https://developer.mozilla.org/en-US/docs/Web/API/Element/className
+> 再次理解下回调函数
+```
+  esbuild: {
+    // jsxFactory 告诉esbuild 如何编译jsx
+    jsxFactory: 'AReact.createElement'
+  }
+```
+这里的AReact.createElement其实应该就是一种回调
+函数，由外部提供定义，esbuild内部会调用它，
+调用者会给它传具体的参数，以及可能会使用它的返回
