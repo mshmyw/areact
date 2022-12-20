@@ -20,3 +20,5 @@ export default defineConfig({
   },
 });
 ```
+# 调试vitest
+参看：https://cn.vitest.dev/guide/debugging.html
