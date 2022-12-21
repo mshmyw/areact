@@ -1,3 +1,5 @@
+import { resolve } from "path";
+import "../requestIdleCallbackPolyfill";
 const textType  = 'HostText';
 const createTextElement = (text) => {
   return {
@@ -43,6 +45,8 @@ class AReactDomRoot {
     workInProgressRoot = this._internalRoot;
     workInProgress = workInProgressRoot.current.alternate;
     setTimeout(workloop, 0);
+    window.requestIdleCallback(workloop);
+    // setTimeout(workloop, 0);
     // this.renderImpl(element, this.container);
   }
 
@@ -142,4 +146,25 @@ const getNextFiber = (fiber) => {
 function createRoot(container) {
   return new AReactDomRoot(container);
 }
-export default { createElement, createRoot };
+
+function act(callback) {
+  // 原理就是不断在空闲时间间歇性检查workInProgress
+  // 没有值则说明完成，否则继续检查
+  callback();
+
+  return new Promise(resolve => {
+
+    function loop() {
+      if (workInProgress) {
+        // 存在则下一个空闲任务周期继续检查
+        window.requestIdleCallback(loop);
+      } else {
+        // 不存在则说明已完成，直接resolve
+        resolve();
+      }
+    }
+    loop();
+  });
+}
+
+export default { createElement, createRoot,act };

@@ -47,3 +47,5 @@ reference：
 Workloop：https://github.com/facebook/react/blob/4f29ba1cc52061e439cede3813e100557b23a15c/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L1824-L1829
 https://github.com/facebook/react/issues/7942
 React act case：https://github.com/facebook/react/blob/17806594cc28284fe195f918e8d77de3516848ec/packages/react/src/__tests__/ReactStrictMode-test.internal.js#L87-L108
+requestIdlecallback理解：浏览器空闲的时候才开始执行，否则等待
+https://blog.csdn.net/KlausLily/article/details/122852531
