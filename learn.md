@@ -42,3 +42,8 @@ pendingProps memoizedProps updateQueue memoizedState dependencies
 
 ### 实现关键点
 workloop workinprocess/alternate/current双缓冲 fiber链表遍历 requestidlecallback
+
+reference：
+Workloop：https://github.com/facebook/react/blob/4f29ba1cc52061e439cede3813e100557b23a15c/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L1824-L1829
+https://github.com/facebook/react/issues/7942
+React act case：https://github.com/facebook/react/blob/17806594cc28284fe195f918e8d77de3516848ec/packages/react/src/__tests__/ReactStrictMode-test.internal.js#L87-L108
