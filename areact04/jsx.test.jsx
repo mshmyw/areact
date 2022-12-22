@@ -102,3 +102,53 @@ describe('AReact concurrent', () => {
     );
   });
 });
+
+describe('Function component', ()=> {
+  it('should render function component', async () => {
+    const container = document.createElement('div');
+    function App() {
+      return (
+        <div id="foo">
+          <div id="bar"></div>
+          <button></button>
+        </div>
+      );
+    }
+
+    const root = AReact.createRoot(container);
+    //  精准等待异步任务完成再执行后续动作
+    await act(() => {
+      root.render(<App />);
+      expect(container.innerHTML).toBe('');
+    });
+    expect(container.innerHTML).toBe(
+      '<div id="foo"><div id="bar"></div><button></button></div>'
+    );
+  });
+
+  it('should render nested function component', async () => {
+    const container = document.createElement('div');
+    function App(props) {
+      return (
+        <div id="foo">
+          <div id="bar">{props.title}</div>
+          <button></button>
+          {props.children}
+        </div>
+      );
+    }
+
+    const root = AReact.createRoot(container);
+    //  精准等待异步任务完成再执行后续动作
+    await act(() => {
+      root.render(<App title="main title">
+        <App title="sub title"></App>
+      </App>);
+      expect(container.innerHTML).toBe('');
+    });
+    console.log(container.innerHTML);
+    expect(container.innerHTML).toBe(
+      '<div id="foo"><div id="bar">main title</div><button></button><div id="foo"><div id="bar">sub title</div><button></button></div></div>'
+    );
+  });
+});

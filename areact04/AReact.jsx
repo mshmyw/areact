@@ -15,7 +15,8 @@ function createElement(type, props, ...children) {
     type,
     props: {
       ...props,
-      children: children.map(child => {
+      // 注意flat 拍平数组，exp [1,2,[3,4]] => [1,2,3,4]
+      children: children.flat().map(child => {
         return typeof child !== 'object' ? createTextElement(child): child;
       })
      }
@@ -82,28 +83,41 @@ const performUnitOfwork = (fiber) => {
    * 3 返回下一个处理的fiber
    */
   // 处理当前fiber :创建dom 设置props 插入当前dom到parent
-  const {
-    type,
-    props: { children, ...rest },
-  } = fiber;
-  if (!fiber.stateNode) {
-    fiber.stateNode =
-      type === textType
-        ? document.createTextNode('')
-        : document.createElement(type);
-    console.log('renderElement', fiber.props);
-    for (const [key, value] of Object.entries(rest)) {
-      fiber.stateNode[key] = value;
+  // 注意函数式组件并不创建dom
+  const isFunctionComponent = fiber.type instanceof Function;
+  if(isFunctionComponent) {
+    fiber.props.children = [fiber.type(fiber.props)];
+  } else {
+    const {
+      type,
+      props: { children, ...rest },
+    } = fiber;
+    if (!fiber.stateNode) {
+      fiber.stateNode =
+        type === textType
+          ? document.createTextNode('')
+          : document.createElement(type);
+      console.log('renderElement', fiber.props);
+      for (const [key, value] of Object.entries(rest)) {
+        fiber.stateNode[key] = value;
+      }
+    }
+
+    if (fiber.return) {
+      // 将创建的 dom 插入parent/ 叔叔
+      // 往上查找，直到有一个节点存在 statNode
+      let domParentFiber = fiber.return;
+      while (!domParentFiber.stateNode) {
+        domParentFiber = domParentFiber.return;
+      }
+      domParentFiber.stateNode.appendChild(fiber.stateNode);
     }
   }
-  if (fiber.return) {
-    // 将创建的 dom 插入parent/ 叔叔
-    fiber.return.stateNode.appendChild(fiber.stateNode);
-  }
+
 
   let preSibling = null;
   // 初始化children 的 fiber
-  children.forEach((child, index) => {
+  fiber.props.children.forEach((child, index) => {
     // 初始化新的fiber节点
     const newFiber = {
       type: child.type,

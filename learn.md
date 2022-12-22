@@ -49,3 +49,7 @@ https://github.com/facebook/react/issues/7942
 React act case：https://github.com/facebook/react/blob/17806594cc28284fe195f918e8d77de3516848ec/packages/react/src/__tests__/ReactStrictMode-test.internal.js#L87-L108
 requestIdlecallback理解：浏览器空闲的时候才开始执行，否则等待
 https://blog.csdn.net/KlausLily/article/details/122852531
+
+# learn 04
+1 函数式组件fiber无dom节点，即 stateNode = null
+2 FC 组件的children 来自function执行结果，而非props.children
