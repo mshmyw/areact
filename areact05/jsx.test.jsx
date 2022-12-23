@@ -177,6 +177,9 @@ describe('Hooks', () => {
     await act(() => {
       globalObj.setCount((count) => count+1);
     });
-    expect(globalObj.count).toBe(101);
+    await act(() => {
+      globalObj.setCount(globalObj.count + 1);
+    });
+    expect(globalObj.count).toBe(102);
   });
 });

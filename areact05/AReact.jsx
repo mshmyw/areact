@@ -76,6 +76,10 @@ function workloop() {
     // 处理当前并返回下一个将要处理的fiber节点，并直接赋值给workInProgress
     workInProgress = performUnitOfwork(workInProgress);
   }
+  if(!workInProgress && workInProgressRoot.current.alternate) {
+    workInProgressRoot.current = workInProgressRoot.current.alternate;
+    workInProgressRoot.current.alternate = null;
+  }
 }
 
 const performUnitOfwork = (fiber) => {
@@ -87,7 +91,7 @@ const performUnitOfwork = (fiber) => {
   // 处理当前fiber :创建dom 设置props 插入当前dom到parent
   // 注意函数式组件并不创建dom
   const isFunctionComponent = fiber.type instanceof Function;
-  if(isFunctionComponent) {
+  if (isFunctionComponent) {
     currentHookFiber = fiber;
     currentHookFiber.memorizedState = [];
     currentHookIndex = 0;
@@ -119,17 +123,40 @@ const performUnitOfwork = (fiber) => {
     }
   }
 
-
-  let preSibling = null;
   // 初始化children 的 fiber
+  let preSibling = null;
+  // mount 阶段oldFiber为空，update阶段fiber为上一次的值
+  let oldFiber = fiber.alternate?.child;
   fiber.props.children.forEach((child, index) => {
-    // 初始化新的fiber节点
-    const newFiber = {
-      type: child.type,
-      stateNode: null,
-      props: child.props,
-      return: fiber,
-    };
+    let newFiber = null;
+    if(!oldFiber) {
+      // mount 阶段
+      // 初始化新的fiber节点
+      newFiber = {
+        type: child.type,
+        stateNode: null,
+        props: child.props,
+        return: fiber,
+        alternate: null,
+        child: null,
+        sibling: null
+      };
+    } else {
+      // update 阶段
+      newFiber = {
+        type: child.type,
+        stateNode: oldFiber.stateNode,
+        props: child.props,
+        return: fiber,
+        alternate: oldFiber,
+        child: null,
+        sibling: null
+      };
+    }
+    if(oldFiber) {
+      oldFiber = oldFiber.sibling;
+    }
+
     if (index === 0) {
       fiber.child = newFiber;
     } else {
@@ -171,22 +198,27 @@ function useState(initState) {
   const hook = {
     // 这就是其跨函数执行保存数据的原理
     state: oldHook ? oldHook.state : initState,
-    queue: []
+    queue: [],
+    dispatch: oldHook ? oldHook.dispatch: null
   };
   const actions = oldHook ? oldHook.queue: [];
-  const setState = (action) =>{
+  actions.forEach((action) => {
+    hook.state = typeof action === 'function'? action(hook.state) : action;
+  });
+  const setState = hook.dispatch ? hook.dispatch: (action) =>{
     hook.queue.push(action);
     // 触发 re-render
     workInProgressRoot.current.alternate = {
       stateNode: workInProgressRoot.current.containerInfo,
       props: workInProgressRoot.current.props,
-      alternate: workInProgress.current, // 重要 交换alternate 与 current
+      alternate: workInProgressRoot.current, // 重要 交换alternate 与 current
     };
     workInProgress = workInProgressRoot.current.alternate;
-    setTimeout(workloop, 0);
     window.requestIdleCallback(workloop);
   };
-  return [state, setState];
+  currentHookFiber.memorizedState.push(hook);
+  currentHookIndex++;
+  return [hook.state, setState];
 }
 
 function act(callback) {
