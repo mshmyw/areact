@@ -221,6 +221,15 @@ function useState(initState) {
   return [hook.state, setState];
 }
 
+function useReducer(reducer, initState) {
+  const [state, setState] = useState(initState);
+  const dispatch = (action) => {
+    // reducer = (oldState, action) => newState
+    const newState = (state) => reducer(state, action);
+    setState(newState);
+  };
+  return [state, dispatch];
+}
 function act(callback) {
   // 原理就是不断在空闲时间间歇性检查workInProgress
   // 没有值则说明完成，否则继续检查
@@ -241,4 +250,4 @@ function act(callback) {
   });
 }
 
-export default { createElement, createRoot,act, useState };
+export default { createElement, createRoot,act, useState, useReducer };

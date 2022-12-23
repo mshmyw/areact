@@ -182,4 +182,34 @@ describe('Hooks', () => {
     });
     expect(globalObj.count).toBe(102);
   });
+
+  it('should support useReducer', async () => {
+    const container = document.createElement('div');
+    const globalObj = {};
+
+    function reducer(state, action) {
+      switch(action.type) {
+        case 'add': return state+1;
+        case 'sub': return state-1;
+      }
+    }
+
+    function App() {
+      const [count, dispatch] = AReact.useReducer(reducer, 100);
+      globalObj.count = count;
+      globalObj.dispatch = dispatch;
+      return <div>{count}</div>;
+    }
+
+    const root = AReact.createRoot(container);
+    //  精准等待异步任务完成再执行后续动作
+    await act(() => {
+      root.render(<App />);
+    });
+    await act(() => {
+      globalObj.dispatch({ type: 'add' });
+      globalObj.dispatch({ type: 'add' });
+    });
+    expect(globalObj.count).toBe(102);
+  });
 });
