@@ -64,3 +64,17 @@ setState 之后组件重新渲染，那么它的数据存放在哪里？
 ts 可选链`?.` 判断对象 a?.b 判断数组 a?.[index]
 事实上，js 就有可选链，参考:
 mdn:https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Optional_chaining#%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7
+
+useState 和 useReducer 相互转化（前者通过后者一行代码实现）
+react 源码里 useState 是通过useReducer 实现的？
+
+# learn 06
+reconciler 协调器（dom diff, render 和 commit拆分)
+schedule render commit 共三个阶段
+将前面的render 拆分为 真正的 render（react-reconciler）和commit(react-dom)
+对应到 performUnitOfwork的拆分
+reconciler做到：fiber树生成，dom diff，结合dom diff 给fiber树打effectTag
+commit(react-dom)阶段结合effectTag做具体的dom操作(批量更新)
+1 事件绑定
+2 render/commit 拆分
+3 dom diff(create-effecttag:placement update-effecttag:update delete-effecttag:deletion)
