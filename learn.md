@@ -61,6 +61,6 @@ setState 之后组件重新渲染，那么它的数据存放在哪里？
 1 hook 存储 2 如何触发rerender 3 setState 4 setState ((state) => state+1) 5 setState 多次渲染中不变 6 useState 和 useReducer关系
 
 小知识：
-ts 可选链`?.`
-判断对象 a?.b
-判断数组 a?.[index]
+ts 可选链`?.` 判断对象 a?.b 判断数组 a?.[index]
+事实上，js 就有可选链，参考:
+mdn:https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Operators/Optional_chaining#%E6%B5%8F%E8%A7%88%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7
