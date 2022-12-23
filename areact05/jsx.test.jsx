@@ -1,3 +1,4 @@
+import { count } from "console";
 import { describe, it, expect } from "vitest";
 import AReact from './AReact';
 const act = AReact.act;
@@ -150,5 +151,32 @@ describe('Function component', ()=> {
     expect(container.innerHTML).toBe(
       '<div id="foo"><div id="bar">main title</div><button></button><div id="foo"><div id="bar">sub title</div><button></button></div></div>'
     );
+  });
+});
+
+describe('Hooks', () => {
+  it('should support useState', async () => {
+    const container = document.createElement('div');
+    const globalObj = {};
+    function App() {
+      const [count, setCount] = AReact.useState(100);
+      globalObj.count = count;
+      globalObj.setCount = setCount;
+      return (
+        <div>
+          {count}
+        </div>
+      );
+    }
+
+    const root = AReact.createRoot(container);
+    //  精准等待异步任务完成再执行后续动作
+    await act(() => {
+      root.render(<App />);
+    });
+    await act(() => {
+      globalObj.setCount((count) => count+1);
+    });
+    expect(globalObj.count).toBe(101);
   });
 });

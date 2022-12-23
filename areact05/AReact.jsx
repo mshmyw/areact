@@ -26,6 +26,8 @@ function createElement(type, props, ...children) {
 // 当前执行的任务
 let workInProgress = null;
 let workInProgressRoot = null; // 保存整个fiberroot
+let currentHookFiber = null;
+let currentHookIndex = 0;
 class AReactDomRoot {
   _internalRoot = null;
   constructor(container) {
@@ -86,6 +88,9 @@ const performUnitOfwork = (fiber) => {
   // 注意函数式组件并不创建dom
   const isFunctionComponent = fiber.type instanceof Function;
   if(isFunctionComponent) {
+    currentHookFiber = fiber;
+    currentHookFiber.memorizedState = [];
+    currentHookIndex = 0;
     fiber.props.children = [fiber.type(fiber.props)];
   } else {
     const {
@@ -161,6 +166,29 @@ function createRoot(container) {
   return new AReactDomRoot(container);
 }
 
+function useState(initState) {
+  const oldHook = currentHookFiber.alternate?.memorizedState?.[currentHookIndex];
+  const hook = {
+    // 这就是其跨函数执行保存数据的原理
+    state: oldHook ? oldHook.state : initState,
+    queue: []
+  };
+  const actions = oldHook ? oldHook.queue: [];
+  const setState = (action) =>{
+    hook.queue.push(action);
+    // 触发 re-render
+    workInProgressRoot.current.alternate = {
+      stateNode: workInProgressRoot.current.containerInfo,
+      props: workInProgressRoot.current.props,
+      alternate: workInProgress.current, // 重要 交换alternate 与 current
+    };
+    workInProgress = workInProgressRoot.current.alternate;
+    setTimeout(workloop, 0);
+    window.requestIdleCallback(workloop);
+  };
+  return [state, setState];
+}
+
 function act(callback) {
   // 原理就是不断在空闲时间间歇性检查workInProgress
   // 没有值则说明完成，否则继续检查
@@ -181,4 +209,4 @@ function act(callback) {
   });
 }
 
-export default { createElement, createRoot,act };
+export default { createElement, createRoot,act, useState };
