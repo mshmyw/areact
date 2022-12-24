@@ -78,3 +78,13 @@ commit(react-dom)阶段结合effectTag做具体的dom操作(批量更新)
 1 事件绑定
 2 render/commit 拆分
 3 dom diff(create-effecttag:placement update-effecttag:update delete-effecttag:deletion)
+
+# learn 07
+
+开发模式（tdd) + 解决问题实践+解决问题思路
+tdd有助于进入心流状态
+仿照-> 创造
+问题：schedue render commit
+分别对应代码具体哪里呢？
+
+-- thanks camsong huiying from alibaba
