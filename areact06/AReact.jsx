@@ -30,7 +30,9 @@ let currentHookFiber = null;
 let currentHookIndex = 0;
 const isEvent = (key) => key.startsWith('on');
 const isProperty = (key) => key !== 'children' && !isEvent(key);
-
+const isGone = (prev, next) => (key) => !(key in next);
+const isNew = (prev, next) => (key) => !(key in prev) && (key in next);
+const isChanged = (prev, next) => (key) => key in prev && key in next && prev[key] !== next[key];
 class AReactDomRoot {
   _internalRoot = null;
   constructor(container) {
@@ -80,10 +82,88 @@ function workloop() {
     workInProgress = performUnitOfwork(workInProgress);
   }
   if(!workInProgress && workInProgressRoot.current.alternate) {
-    workInProgressRoot.current = workInProgressRoot.current.alternate;
-    workInProgressRoot.current.alternate = null;
+    // fiber处理结束后
+    commitRoot();
   }
 }
+
+const commitRoot = () => {
+  commitWork(workInProgressRoot.current.alternate.child);
+  workInProgressRoot.current = workInProgressRoot.current.alternate;
+  workInProgressRoot.current.alternate = null;
+};
+
+const commitWork = (fiber) =>{
+  if(!fiber) {
+    return;
+  }
+  let domParentFiber = null;
+
+  if (fiber.return) {
+    // 将创建的 dom 插入parent/ 叔叔
+    // 往上查找，直到有一个节点存在 statNode
+    domParentFiber = fiber.return;
+    while (!domParentFiber.stateNode) {
+      domParentFiber = domParentFiber.return;
+    }
+  }
+
+  if (fiber.effectTag === 'PLACEMENT' && fiber.stateNode) {
+    // set dom props
+    updateDom(fiber.stateNode, {}, fiber.props);
+
+    // 真正的dom操作 append dom
+    domParentFiber.stateNode.appendChild(fiber.stateNode);
+  } else if(fiber.effectTag === 'UPDATE') {
+    updateDom(fiber.stateNode, fiber.alternate.props, fiber.props);
+  }
+
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
+};
+
+const updateDom = (stateNode, prevProps, nextProps) => {
+  // remove old or changed event binding
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter(
+      (key) =>
+        isGone(prevProps, nextProps)(key) || isChanged(prevProps, nextProps)(key)
+    )
+    .forEach((key) => {
+        const eventName = key.toLowerCase().slice(2); // onClick => click
+        stateNode.removeEventListener(eventName, prevProps[key]);
+    });
+  // remove deleted props
+    Object.keys(prevProps)
+      .filter(isProperty)
+      .filter(isGone(prevProps, nextProps))
+      .forEach((key) => {
+        stateNode[key] = '';
+      });;
+  // set new or changed props
+  Object.keys(nextProps)
+    .filter(isProperty)
+    .filter(
+      (key) =>
+        isNew(prevProps, nextProps)(key) || isChanged(prevProps, nextProps)(key)
+    )
+    .forEach((key) => {
+      stateNode[key] = nextProps[key];
+    });
+  // add new or changed event binding
+    Object.keys(nextProps)
+      .filter(isEvent)
+      .filter(
+        (key) =>
+          isNew(prevProps, nextProps)(key) ||
+          isChanged(prevProps, nextProps)(key)
+      )
+      .forEach((key) => {
+        const eventName = key.toLowerCase().slice(2); // onClick => click
+        stateNode.addEventListener(eventName, nextProps[key]);
+      });
+};
 
 const performUnitOfwork = (fiber) => {
   /**
@@ -110,40 +190,33 @@ const performUnitOfwork = (fiber) => {
           ? document.createTextNode('')
           : document.createElement(type);
       console.log('renderElement', fiber.props);
-      Object.keys(fiber.props)
-      .filter(isProperty)
-      .forEach((key) => {
-        fiber.stateNode[key] = fiber.props[key];
-      });
-      Object.keys(fiber.props)
-        .filter(isEvent)
-        .forEach((key) => {
-          const eventName = key.toLowerCase().slice(2); // onClick => click
-          fiber.stateNode.addEventListener(eventName, fiber.props[key]);
-          fiber.stateNode[key] = fiber.props[key];
-        });
-    }
 
-    if (fiber.return) {
-      // 将创建的 dom 插入parent/ 叔叔
-      // 往上查找，直到有一个节点存在 statNode
-      let domParentFiber = fiber.return;
-      while (!domParentFiber.stateNode) {
-        domParentFiber = domParentFiber.return;
-      }
-      domParentFiber.stateNode.appendChild(fiber.stateNode);
     }
   }
+
+
+  reconcilerChildren(fiber, fiber.props.children);
+  // 返回下一个处理的fiber
+  return getNextFiber(fiber);
+};
+
+// dom diff and effecttag
+const reconcilerChildren = (fiber, children) => {
+  // 遍历children 比较当前fiber和oldfiber，然后在fiber上添加effectTag
 
   // 初始化children 的 fiber
   let preSibling = null;
   // mount 阶段oldFiber为空，update阶段fiber为上一次的值
   let oldFiber = fiber.alternate?.child;
-  fiber.props.children.forEach((child, index) => {
+  // 注意新老不是一一对应的情况 oldFiber [1,2,3] newFiber [1,2]
+  // fiber.props.children.forEach((child, index) => {
+  let index = 0;
+  while(index < fiber.props.children.length || oldFiber) {
+    const child = fiber.props.children[index];
     let newFiber = null;
-    if(!oldFiber) {
-      // mount 阶段
-      // 初始化新的fiber节点
+    let sameType = oldFiber && child && child.type === oldFiber.type;
+    // mount/placement
+    if (child && !sameType) {
       newFiber = {
         type: child.type,
         stateNode: null,
@@ -151,10 +224,11 @@ const performUnitOfwork = (fiber) => {
         return: fiber,
         alternate: null,
         child: null,
-        sibling: null
+        sibling: null,
+        effectTag: 'PLACEMENT'
       };
-    } else {
-      // update 阶段
+    } else if (sameType) {
+      // update
       newFiber = {
         type: child.type,
         stateNode: oldFiber.stateNode,
@@ -162,10 +236,14 @@ const performUnitOfwork = (fiber) => {
         return: fiber,
         alternate: oldFiber,
         child: null,
-        sibling: null
+        sibling: null,
+        effectTag: 'UPDATE',
       };
+    } else if(!sameType && oldFiber) {
+      // delete
     }
-    if(oldFiber) {
+
+    if (oldFiber) {
       oldFiber = oldFiber.sibling;
     }
 
@@ -175,10 +253,8 @@ const performUnitOfwork = (fiber) => {
       preSibling.sibling = newFiber;
     }
     preSibling = newFiber;
-  });
-
-  // 返回下一个处理的fiber
-  return getNextFiber(fiber);
+    index++;
+  };
 };
 
 const getNextFiber = (fiber) => {
@@ -221,7 +297,7 @@ function useState(initState) {
     hook.queue.push(action);
     // 触发 re-render
     workInProgressRoot.current.alternate = {
-      stateNode: workInProgressRoot.current.containerInfo,
+      stateNode: workInProgressRoot.containerInfo,
       props: workInProgressRoot.current.props,
       alternate: workInProgressRoot.current, // 重要 交换alternate 与 current
     };
