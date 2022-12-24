@@ -28,6 +28,9 @@ let workInProgress = null;
 let workInProgressRoot = null; // 保存整个fiberroot
 let currentHookFiber = null;
 let currentHookIndex = 0;
+const isEvent = (key) => key.startsWith('on');
+const isProperty = (key) => key !== 'children' && !isEvent(key);
+
 class AReactDomRoot {
   _internalRoot = null;
   constructor(container) {
@@ -107,9 +110,18 @@ const performUnitOfwork = (fiber) => {
           ? document.createTextNode('')
           : document.createElement(type);
       console.log('renderElement', fiber.props);
-      for (const [key, value] of Object.entries(rest)) {
-        fiber.stateNode[key] = value;
-      }
+      Object.keys(fiber.props)
+      .filter(isProperty)
+      .forEach((key) => {
+        fiber.stateNode[key] = fiber.props[key];
+      });
+      Object.keys(fiber.props)
+        .filter(isEvent)
+        .forEach((key) => {
+          const eventName = key.toLowerCase().slice(2); // onClick => click
+          fiber.stateNode.addEventListener(eventName, fiber.props[key]);
+          fiber.stateNode[key] = fiber.props[key];
+        });
     }
 
     if (fiber.return) {
