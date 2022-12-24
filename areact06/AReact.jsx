@@ -51,8 +51,8 @@ class AReactDomRoot {
       }
     };
     workInProgressRoot = this._internalRoot;
+    workInProgressRoot.deletions = [];
     workInProgress = workInProgressRoot.current.alternate;
-    setTimeout(workloop, 0);
     window.requestIdleCallback(workloop);
     // setTimeout(workloop, 0);
     // this.renderImpl(element, this.container);
@@ -88,6 +88,7 @@ function workloop() {
 }
 
 const commitRoot = () => {
+  workInProgressRoot.deletions.forEach(commitWork);
   commitWork(workInProgressRoot.current.alternate.child);
   workInProgressRoot.current = workInProgressRoot.current.alternate;
   workInProgressRoot.current.alternate = null;
@@ -116,10 +117,21 @@ const commitWork = (fiber) =>{
     domParentFiber.stateNode.appendChild(fiber.stateNode);
   } else if(fiber.effectTag === 'UPDATE') {
     updateDom(fiber.stateNode, fiber.alternate.props, fiber.props);
+  } else if(fiber.effectTag === "DELETION") {
+     commitDeletion(fiber, domParentFiber.stateNode);
   }
 
   commitWork(fiber.child);
   commitWork(fiber.sibling);
+};
+
+const commitDeletion = (fiber, parentStateNode) => {
+  if(fiber.stateNode) {
+    parentStateNode.contains(fiber.stateNode) &&
+    parentStateNode.removeChild(fiber.stateNode);
+  } else {
+    commitDeletion(fiber.child, parentStateNode);
+  }
 };
 
 const updateDom = (stateNode, prevProps, nextProps) => {
@@ -209,7 +221,6 @@ const reconcilerChildren = (fiber, children) => {
   // mount 阶段oldFiber为空，update阶段fiber为上一次的值
   let oldFiber = fiber.alternate?.child;
   // 注意新老不是一一对应的情况 oldFiber [1,2,3] newFiber [1,2]
-  // fiber.props.children.forEach((child, index) => {
   let index = 0;
   while(index < fiber.props.children.length || oldFiber) {
     const child = fiber.props.children[index];
@@ -241,6 +252,8 @@ const reconcilerChildren = (fiber, children) => {
       };
     } else if(!sameType && oldFiber) {
       // delete
+      oldFiber.effectTag = "DELETION";
+      workInProgressRoot.deletions.push(oldFiber);
     }
 
     if (oldFiber) {
@@ -250,7 +263,7 @@ const reconcilerChildren = (fiber, children) => {
     if (index === 0) {
       fiber.child = newFiber;
     } else {
-      preSibling.sibling = newFiber;
+      preSibling && (preSibling.sibling = newFiber);
     }
     preSibling = newFiber;
     index++;
@@ -302,6 +315,7 @@ function useState(initState) {
       alternate: workInProgressRoot.current, // 重要 交换alternate 与 current
     };
     workInProgress = workInProgressRoot.current.alternate;
+    workInProgressRoot.deletions = [];
     window.requestIdleCallback(workloop);
   };
   currentHookFiber.memorizedState.push(hook);
